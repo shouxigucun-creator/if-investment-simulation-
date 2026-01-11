@@ -1,1 +1,103 @@
-OK
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <title>投資シミュレーター（学習用）</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <style>
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont;
+      background: #f4f6f8;
+      margin: 0;
+      padding: 16px;
+    }
+    h1 {
+      font-size: 1.4em;
+      margin-bottom: 10px;
+    }
+    section {
+      background: #fff;
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 16px;
+    }
+    label {
+      display: block;
+      margin-top: 10px;
+      font-size: 0.9em;
+    }
+    input, select {
+      width: 100%;
+      padding: 8px;
+      margin-top: 4px;
+      font-size: 1em;
+    }
+    button {
+      margin-top: 16px;
+      width: 100%;
+      padding: 12px;
+      font-size: 1em;
+      border: none;
+      border-radius: 8px;
+      background: #007aff;
+      color: #fff;
+    }
+    canvas {
+      width: 100%;
+      height: 220px;
+      margin-top: 10px;
+    }
+    .note {
+      font-size: 0.75em;
+      color: #666;
+    }
+  </style>
+</head>
+<body>
+
+<h1>投資シミュレーター（限定公開）</h1>
+
+<section>
+  <label>初期投資額（円）
+    <input id="initial" type="number" value="1000000">
+  </label>
+
+  <label>毎月積立額（円）
+    <input id="monthly" type="number" value="50000">
+  </label>
+
+  <label>投資年数
+    <input id="years" type="number" value="30">
+  </label>
+
+  <label>想定年利
+    <select id="rate">
+      <option value="0.03">3%</option>
+      <option value="0.05">5%</option>
+      <option value="0.07" selected>7%</option>
+      <option value="0.10">10%</option>
+    </select>
+  </label>
+
+  <label>口座区分
+    <select id="account">
+      <option value="nisa">新NISA（非課税）</option>
+      <option value="tax">特定口座（課税）</option>
+    </select>
+  </label>
+
+  <button onclick="runSimulation()">シミュレーションする</button>
+</section>
+
+<section>
+  <canvas id="chart" width="320" height="220"></canvas>
+  <div id="result"></div>
+</section>
+
+<section class="note">
+  ※ 本シミュレーターは学習目的です。実際の投資成果を保証するものではありません。
+</section>
+
+<script src="app.js"></script>
+</body>
+</html>
