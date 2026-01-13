@@ -1,58 +1,162 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>IF投資シミュレーション</title>
-  <style>
-    body {
-      font-family: sans-serif;
-      padding: 20px;
-    }
-    input, button {
-      font-size: 16px;
-      margin: 5px 0;
-    }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>住宅ローンシミュレーター</title>
+<style>
+    body { font-family: Arial, sans-serif; max-width: 900px; margin: auto; padding: 20px; }
+    h1 { text-align: center; }
+    label { display: block; margin-top: 10px; }
+    input, select { padding: 5px; width: 100%; max-width: 200px; margin-top: 5px; }
+    .section { border: 1px solid #ccc; padding: 15px; margin-top: 15px; border-radius: 5px; }
+    #result { margin-top: 20px; padding: 15px; border: 2px solid #007bff; border-radius: 5px; background-color: #f0f8ff; }
+    canvas { margin-top: 20px; }
+</style>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
-  <h1>IF投資シミュレーション</h1>
 
-  <label>
-    毎月の積立額（円）<br>
-    <input type="number" id="amount" value="10000">
-  </label><br>
+<h1>住宅ローンシミュレーター</h1>
 
-  <label>
-    年利（%）<br>
-    <input type="number" id="rate" value="5">
-  </label><br>
+<div class="section">
+    <label>物件タイプ：
+        <select id="propertyType">
+            <option value="house">一戸建て</option>
+            <option value="mansion">マンション</option>
+        </select>
+    </label>
 
-  <label>
-    年数<br>
-    <input type="number" id="years" value="20">
-  </label><br>
+    <label>物件価格（万円）：
+        <input type="number" id="price" value="4000" min="2000" max="15000">
+    </label>
 
-  <button onclick="calc()">計算する</button>
+    <label>頭金（万円）：
+        <input type="number" id="downPayment" value="0" min="0">
+    </label>
 
-  <h2 id="result"></h2>
+    <label>ローン年数：
+        <select id="years">
+            <option value="35">35年</option>
+            <option value="40">40年</option>
+            <option value="50">50年</option>
+        </select>
+    </label>
 
-  <script>
-    function calc() {
-      const amount = Number(document.getElementById('amount').value);
-      const rate = Number(document.getElementById('rate').value) / 100;
-      const years = Number(document.getElementById('years').value);
+    <label>金利タイプ：
+        <select id="interestType">
+            <option value="fixed">固定金利</option>
+            <option value="variable">変動金利</option>
+        </select>
+    </label>
 
-      const months = years * 12;
-      let total = 0;
+    <label>金利（%）：
+        <input type="number" id="interestRate" value="1.5" step="0.01" min="0.1" max="5">
+    </label>
 
-      for (let i = 0; i < months; i++) {
-        total = total * (1 + rate / 12) + amount;
-      }
+    <div id="houseFields" style="display:block;">
+        <label>固定資産税（年額万円）：
+            <input type="number" id="propertyTax" value="12">
+        </label>
+        <label>火災保険（年額万円）：
+            <input type="number" id="fireInsurance" value="5">
+        </label>
+    </div>
 
-      document.getElementById('result').innerText =
-        `最終金額：約 ${Math.round(total).toLocaleString()} 円`;
+    <div id="mansionFields" style="display:none;">
+        <label>修繕積立金（月額万円）：
+            <input type="number" id="repairFee" value="2">
+        </label>
+        <label>管理費（月額万円）：
+            <input type="number" id="managementFee" value="1.5">
+        </label>
+    </div>
+
+    <button onclick="calculateLoan()" style="margin-top:15px;padding:10px 20px;">計算する</button>
+</div>
+
+<div id="result"></div>
+<canvas id="comparisonChart" height="400"></canvas>
+
+<script>
+let comparisonChart;
+
+function calculateLoan() {
+    const propertyType = document.getElementById('propertyType').value;
+    const price = Number(document.getElementById('price').value) * 10000;
+    const downPayment = Number(document.getElementById('downPayment').value) * 10000;
+    const loanAmount = price - downPayment;
+
+    const years = Number(document.getElementById('years').value);
+    const interestRate = Number(document.getElementById('interestRate').value) / 100;
+    const months = years * 12;
+    const monthlyRate = interestRate / 12;
+
+    let otherMonthly = 0;
+    if(propertyType==='house'){
+        const tax = Number(document.getElementById('propertyTax').value) * 10000;
+        const insurance = Number(document.getElementById('fireInsurance').value) * 10000;
+        otherMonthly = (tax + insurance)/12;
+    }else{
+        const repair = Number(document.getElementById('repairFee').value)*10000;
+        const management = Number(document.getElementById('managementFee').value)*10000;
+        otherMonthly = repair + management;
     }
-  </script>
+
+    // 元利均等返済
+    const M = loanAmount*(monthlyRate*Math.pow(1+monthlyRate,months))/(Math.pow(1+monthlyRate,months)-1);
+    const totalMonthly = M + otherMonthly;
+
+    document.getElementById('result').innerHTML = `
+        <h2>計算結果</h2>
+        <p>ローン借入額：${loanAmount.toLocaleString()}円</p>
+        <p>家本体ローン返済額：${M.toLocaleString()}円</p>
+        <p>その他費用：${otherMonthly.toLocaleString()}円</p>
+        <p><strong>毎月の合計支払額：${totalMonthly.toLocaleString()}円</strong></p>
+        <p>総支払額（ローン＋その他費用）：${(totalMonthly*months).toLocaleString()}円</p>
+    `;
+
+    // グラフデータ作成（家本体 vs 家本体＋その他費用）
+    const labels = [];
+    const loanOnlyData = [];
+    const totalData = [];
+    for(let i=1;i<=months;i++){
+        labels.push(i);
+        loanOnlyData.push(M);
+        totalData.push(M + otherMonthly);
+    }
+
+    const ctx = document.getElementById('comparisonChart').getContext('2d');
+    if(comparisonChart) comparisonChart.destroy();
+    comparisonChart = new Chart(ctx,{
+        type:'line',
+        data:{
+            labels:labels,
+            datasets:[
+                {label:'家本体ローン返済額', data:loanOnlyData, borderColor:'blue', fill:false},
+                {label:'家本体＋固定資産税等の支払額', data:totalData, borderColor:'orange', fill:false}
+            ]
+        },
+        options:{
+            responsive:true,
+            plugins:{title:{display:true,text:'家本体と実際の月々支払額比較'}, tooltip:{mode:'index', intersect:false}},
+            interaction:{mode:'index', intersect:false},
+            scales:{y:{title:{display:true,text:'円'}}, x:{title:{display:true,text:'月'}}}
+        }
+    });
+}
+
+// 物件タイプ切替
+document.getElementById('propertyType').addEventListener('change',function(){
+    if(this.value==='house'){
+        document.getElementById('houseFields').style.display='block';
+        document.getElementById('mansionFields').style.display='none';
+    } else{
+        document.getElementById('houseFields').style.display='none';
+        document.getElementById('mansionFields').style.display='block';
+    }
+});
+</script>
+
 </body>
 </html>
