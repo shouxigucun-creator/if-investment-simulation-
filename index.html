@@ -2,161 +2,149 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>住宅ローンシミュレーター</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>夜喰らいの迷宮 完成版</title>
 <style>
-    body { font-family: Arial, sans-serif; max-width: 900px; margin: auto; padding: 20px; }
-    h1 { text-align: center; }
-    label { display: block; margin-top: 10px; }
-    input, select { padding: 5px; width: 100%; max-width: 200px; margin-top: 5px; }
-    .section { border: 1px solid #ccc; padding: 15px; margin-top: 15px; border-radius: 5px; }
-    #result { margin-top: 20px; padding: 15px; border: 2px solid #007bff; border-radius: 5px; background-color: #f0f8ff; }
-    canvas { margin-top: 20px; }
+body{margin:0;background:#000;color:#eee;font-family:sans-serif}
+#top,#game,#gacha{display:none}
+h2{text-align:center}
+#map{display:grid;grid-template-columns:repeat(9,32px);justify-content:center}
+.cell{width:32px;height:32px;border:1px solid #222;text-align:center;line-height:32px}
+.wall{background:#111}
+.player{background:#09f}
+.enemy{background:#900}
+.stairs{background:#0a0}
+.night .cell{filter:brightness(0.6)}
+#ui{padding:6px;font-size:14px;text-align:center}
+button{padding:6px;margin:2px}
 </style>
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
 
-<h1>住宅ローンシミュレーター</h1>
-
-<div class="section">
-    <label>物件タイプ：
-        <select id="propertyType">
-            <option value="house">一戸建て</option>
-            <option value="mansion">マンション</option>
-        </select>
-    </label>
-
-    <label>物件価格（万円）：
-        <input type="number" id="price" value="4000" min="2000" max="15000">
-    </label>
-
-    <label>頭金（万円）：
-        <input type="number" id="downPayment" value="0" min="0">
-    </label>
-
-    <label>ローン年数：
-        <select id="years">
-            <option value="35">35年</option>
-            <option value="40">40年</option>
-            <option value="50">50年</option>
-        </select>
-    </label>
-
-    <label>金利タイプ：
-        <select id="interestType">
-            <option value="fixed">固定金利</option>
-            <option value="variable">変動金利</option>
-        </select>
-    </label>
-
-    <label>金利（%）：
-        <input type="number" id="interestRate" value="1.5" step="0.01" min="0.1" max="5">
-    </label>
-
-    <div id="houseFields" style="display:block;">
-        <label>固定資産税（年額万円）：
-            <input type="number" id="propertyTax" value="12">
-        </label>
-        <label>火災保険（年額万円）：
-            <input type="number" id="fireInsurance" value="5">
-        </label>
-    </div>
-
-    <div id="mansionFields" style="display:none;">
-        <label>修繕積立金（月額万円）：
-            <input type="number" id="repairFee" value="2">
-        </label>
-        <label>管理費（月額万円）：
-            <input type="number" id="managementFee" value="1.5">
-        </label>
-    </div>
-
-    <button onclick="calculateLoan()" style="margin-top:15px;padding:10px 20px;">計算する</button>
+<div id="top">
+<h2>🌑 夜喰らいの迷宮</h2>
+<button onclick="drawGacha()">🎰 ガチャ</button>
+<button onclick="start()">▶ 冒険開始</button>
 </div>
 
-<div id="result"></div>
-<canvas id="comparisonChart" height="400"></canvas>
+<div id="gacha">
+<h2>🎰 ガチャ</h2>
+<button onclick="roll()">回す</button>
+<p id="gachaResult"></p>
+<button onclick="back()">戻る</button>
+</div>
+
+<div id="game">
+<div id="ui"></div>
+<div id="map"></div>
+<div style="text-align:center">
+<button onclick="move(0,-1)">⬆</button><br>
+<button onclick="move(-1,0)">⬅</button>
+<button onclick="move(1,0)">➡</button><br>
+<button onclick="move(0,1)">⬇</button>
+</div>
+</div>
 
 <script>
-let comparisonChart;
+/* ===== データ ===== */
+const pets={
+ tiger:{name:"虎",atk:1,hp:0},
+ gryphon:{name:"グリフォン",vision:1},
+ pegasus:{name:"ペガサス",floorHeal:3}
+};
+const enemiesBase=[
+ {name:"敵",hp:5,atk:2},
+ {name:"重敵",hp:8,atk:2}
+];
 
-function calculateLoan() {
-    const propertyType = document.getElementById('propertyType').value;
-    const price = Number(document.getElementById('price').value) * 10000;
-    const downPayment = Number(document.getElementById('downPayment').value) * 10000;
-    const loanAmount = price - downPayment;
+/* ===== セーブ ===== */
+let save=JSON.parse(localStorage.getItem("ned_save")||"{}");
+save.pet=save.pet||null;
+save.petLv=save.petLv||{};
+function saveGame(){localStorage.setItem("ned_save",JSON.stringify(save));}
 
-    const years = Number(document.getElementById('years').value);
-    const interestRate = Number(document.getElementById('interestRate').value) / 100;
-    const months = years * 12;
-    const monthlyRate = interestRate / 12;
+/* ===== ガチャ ===== */
+function drawGacha(){
+ top.style.display="none"; gacha.style.display="block";
+}
+function roll(){
+ let keys=Object.keys(pets);
+ let r=keys[Math.floor(Math.random()*keys.length)];
+ save.petLv[r]=(save.petLv[r]||0)+1;
+ save.pet=r;
+ saveGame();
+ gachaResult.textContent=`🐾 ${pets[r].name} 獲得！Lv${save.petLv[r]}`;
+}
+function back(){gacha.style.display="none";top.style.display="block";}
 
-    let otherMonthly = 0;
-    if(propertyType==='house'){
-        const tax = Number(document.getElementById('propertyTax').value) * 10000;
-        const insurance = Number(document.getElementById('fireInsurance').value) * 10000;
-        otherMonthly = (tax + insurance)/12;
-    }else{
-        const repair = Number(document.getElementById('repairFee').value)*10000;
-        const management = Number(document.getElementById('managementFee').value)*10000;
-        otherMonthly = repair + management;
-    }
+/* ===== ゲーム ===== */
+let floor=1,hp=30,food=100;
+let px=1,py=1;
+let enemies=[],map=[];
+const size=9;
 
-    // 元利均等返済
-    const M = loanAmount*(monthlyRate*Math.pow(1+monthlyRate,months))/(Math.pow(1+monthlyRate,months)-1);
-    const totalMonthly = M + otherMonthly;
-
-    document.getElementById('result').innerHTML = `
-        <h2>計算結果</h2>
-        <p>ローン借入額：${loanAmount.toLocaleString()}円</p>
-        <p>家本体ローン返済額：${M.toLocaleString()}円</p>
-        <p>その他費用：${otherMonthly.toLocaleString()}円</p>
-        <p><strong>毎月の合計支払額：${totalMonthly.toLocaleString()}円</strong></p>
-        <p>総支払額（ローン＋その他費用）：${(totalMonthly*months).toLocaleString()}円</p>
-    `;
-
-    // グラフデータ作成（家本体 vs 家本体＋その他費用）
-    const labels = [];
-    const loanOnlyData = [];
-    const totalData = [];
-    for(let i=1;i<=months;i++){
-        labels.push(i);
-        loanOnlyData.push(M);
-        totalData.push(M + otherMonthly);
-    }
-
-    const ctx = document.getElementById('comparisonChart').getContext('2d');
-    if(comparisonChart) comparisonChart.destroy();
-    comparisonChart = new Chart(ctx,{
-        type:'line',
-        data:{
-            labels:labels,
-            datasets:[
-                {label:'家本体ローン返済額', data:loanOnlyData, borderColor:'blue', fill:false},
-                {label:'家本体＋固定資産税等の支払額', data:totalData, borderColor:'orange', fill:false}
-            ]
-        },
-        options:{
-            responsive:true,
-            plugins:{title:{display:true,text:'家本体と実際の月々支払額比較'}, tooltip:{mode:'index', intersect:false}},
-            interaction:{mode:'index', intersect:false},
-            scales:{y:{title:{display:true,text:'円'}}, x:{title:{display:true,text:'月'}}}
-        }
-    });
+function gen(){
+ map=[];
+ for(let y=0;y<size;y++){
+  let r=[];
+  for(let x=0;x<size;x++)r.push(Math.random()<0.15?"#":".");
+  map.push(r);
+ }
+ map[1][1]="P"; map[7][7]=">";
+ enemies=[];
+ let base=enemiesBase[Math.floor(Math.random()*enemiesBase.length)];
+ enemies.push({x:5,y:5,hp:base.hp,atk:base.atk});
 }
 
-// 物件タイプ切替
-document.getElementById('propertyType').addEventListener('change',function(){
-    if(this.value==='house'){
-        document.getElementById('houseFields').style.display='block';
-        document.getElementById('mansionFields').style.display='none';
-    } else{
-        document.getElementById('houseFields').style.display='none';
-        document.getElementById('mansionFields').style.display='block';
-    }
-});
-</script>
+function draw(){
+ let night=floor>=21;
+ document.body.className=night?"night":"";
+ mapDiv.innerHTML="";
+ for(let y=0;y<size;y++)for(let x=0;x<size;x++){
+  let c="cell";
+  if(map[y][x]==="#")c+=" wall";
+  if(px==x&&py==y)c+=" player";
+  enemies.forEach(e=>{if(e.x==x&&e.y==y)c+=" enemy"});
+  if(map[y][x]===">")c+=" stairs";
+  mapDiv.innerHTML+=`<div class="${c}"></div>`;
+ }
+ let petTxt=save.pet?`${pets[save.pet].name}Lv${save.petLv[save.pet]}`:"なし";
+ ui.innerHTML=`${floor}F HP:${hp} 🍙:${food} 🐾:${petTxt}`;
+}
 
+function move(dx,dy){
+ let nx=px+dx,ny=py+dy;
+ if(map[ny][nx]==="#")return;
+ px=nx;py=ny;food--;
+ enemiesTurn();
+ if(map[py][px]===">"){
+  floor++;
+  if(save.pet==="pegasus")hp+=pets.pegasus.floorHeal;
+  if(floor>30){alert("🏁 真END！");location.reload();}
+  gen();
+ }
+ if(hp<=0||food<=0){alert("💀 ゲームオーバー");location.reload();}
+ draw();
+}
+
+function enemiesTurn(){
+ enemies.forEach(e=>{
+  if(Math.abs(px-e.x)+Math.abs(py-e.y)<=1){
+   let dmg=e.atk-(save.pet==="tiger"?1:0);
+   hp-=Math.max(1,dmg);
+  }else{
+   e.x+=Math.sign(px-e.x);
+   e.y+=Math.sign(py-e.y);
+  }
+ });
+}
+
+/* ===== 開始 ===== */
+function start(){
+ top.style.display="none";game.style.display="block";
+ gen();draw();
+}
+top.style.display="block";
+</script>
 </body>
 </html>
